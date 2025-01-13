@@ -10,19 +10,20 @@ class Agent:
         self.beha = beha
 
     def run(self, ctx, goal: str) -> ChatResponse:
-        agent_behavior = f"""
-            You are a {self.desc}, which has this info:
-            1 - {self.beha}
-            2 - {ctx}
-
-            And should perform the tasks accoring to your role that make sense for this objective: 
-            1 - {goal}
-        """
-
-        agent_response: ChatResponse = chat(model='llama3.1', messages=[{
-            'role': self.role,
-            'content': agent_behavior,
-        }])
+        agent_response: ChatResponse = chat(model=self.model, messages=[
+            {
+                'role': self.role,
+                'content': f'You are: {self.desc} .And should act like this: {self.beha}'
+            },
+            {
+                'role': self.role,
+                'content': f'Take into account this information: {ctx}'
+            },
+            {
+                'role': self.role,
+                'content': f'Perform the tasks as descrived in {goal}',
+            }
+        ])
 
         return agent_response
     

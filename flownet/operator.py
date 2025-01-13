@@ -4,24 +4,31 @@ from ollama import chat
 from ollama import ChatResponse
 
 class Operator:
-    def __init__(self, goal: str, agents: list[Agent]):
+    def __init__(self, model: str, goal: str, agents: list[Agent]):
+        self.model = model
         self.goal = goal
         self.agents = {c.name:c for c in agents}
 
     def Execute(self):
         # Define some special agents that will be in charge of scheduling and managing the other agents
-        operator_behavior = f"""
+        operator_behavior = ' '.join(f"""
             Your goal is to execute a task and ensure that the result is correct.
             Based on this {self.goal} which agents from this list would you select to perform that task? 
             Please choose as many as necessary to ensure the task is very well accomplished: {[(v.name, v.desc) for _,v in self.agents.items()]}.
             Why did you choose those agents?. At the end of your response give the list in this foramt ["a","b","c",...]. 
             Do not write anything else after the list
-        """
+        """.split(' '))
 
-        operator_response: ChatResponse = chat(model='llama3.1', messages=[{
-            'role': 'user',
-            'content': operator_behavior,
-        }])
+        operator_response: ChatResponse = chat(model=self.model, messages=[
+            {
+                'role': 'user',
+                'content': 'Follow strictly the instructions I will give you. Do not add information even if it seems usefull. Stick to the rules.',
+            },
+            {
+                'role': 'user',
+                'content': operator_behavior
+            }
+        ])
 
         agents_to_use = operator_response["message"]["content"].split('\n')[-1]
 
@@ -51,7 +58,7 @@ class Operator:
                     which should be the task of this agent?
                 """
 
-                descriptor_response: ChatResponse = chat(model='llama3.1', messages=[{
+                descriptor_response: ChatResponse = chat(model=self.model, messages=[{
                     'role': 'user',
                     'content': descriptor_behaviour,
                 }])
@@ -65,9 +72,13 @@ class Operator:
 
                 print(f'\tAgent [RES] [{agent_instance.name}] response: {agent_response["message"]["content"][:10]}...')
 
-                prev_ctx += agent_response["message"]["content"] + "\n"
+                operator_result[agent_instance.name] = {
+                    'message': agent_response["message"]["content"],
+                    'context': prev_ctx,
+                    'goal'   : descriptor_response["message"]["content"] if not agent_instance.has_custom_goal() else agent_instance.goal
+                }
 
-                operator_result[agent_instance.name] = agent_response["message"]["content"]
+                prev_ctx += agent_response["message"]["content"] + "\n"
 
         return operator_result
         

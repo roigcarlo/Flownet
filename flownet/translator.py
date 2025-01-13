@@ -11,25 +11,27 @@ class Translator(Agent):
         self.src = src 
         self.lng = lng
 
-        self.goal  = f"""
+        self.goal  = ' '.join(f"""
             In my system this class: {self.ref} gives as a result this other class: {self.res}.
             Which {self.lng} code should I write to get the same result for this class: {self.src}?
             Give the code of the js class.
-        """
+        """.split(' '))
 
     def run(self, ctx, goal: str) -> ChatResponse:
-        agent_behavior = f"""
-            My context is the following: {ctx}
-            In my system this class: {self.ref} gives as a result this other class: {self.res}.
-            Which {self.lng} code should I write to get the same result for this class: {self.src}?
-            Give the code of the js class.
-            I should stick to {self.beha}
-        """
-
-        agent_response: ChatResponse = chat(model='llama3.1', messages=[{
-            'role': self.role,
-            'content': agent_behavior,
-        }])
+        agent_response: ChatResponse = chat(model=self.model, messages=[
+            {
+                'role': self.role,
+                'content': f'You are: {self.desc} .And should act like this: {self.beha}'
+            },
+            {
+                'role': self.role,
+                'content': f'Take into account this information: {ctx}'
+            },
+            {
+                'role': self.role,
+                'content': f'Perform the tasks as descrived in {self.goal}',
+            }
+        ])
 
         return agent_response
     
